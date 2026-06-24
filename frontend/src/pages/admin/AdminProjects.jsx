@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { projectAPI, ngoAPI } from '../../services/api';
+import { projectAPI, ngoAPI, documentAPI } from '../../services/api';
 import StatusBadge from '../../components/StatusBadge';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import EmptyState from '../../components/EmptyState';
@@ -7,9 +7,11 @@ import EmptyState from '../../components/EmptyState';
 export default function AdminProjects() {
   const [projects, setProjects] = useState([]);
   const [ngos, setNgos] = useState([]);
+  const [documents, setDocuments] = useState({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('');
+  const [docModal, setDocModal] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -17,6 +19,16 @@ export default function AdminProjects() {
         const [projRes, ngoRes] = await Promise.all([projectAPI.getAll(), ngoAPI.getAll()]);
         setProjects(projRes.data);
         setNgos(ngoRes.data);
+        const docPromises = projRes.data.map(async (p) => {
+          try {
+            const { data } = await documentAPI.getByProject(p.id);
+            return { projectId: p.id, docs: data };
+          } catch { return { projectId: p.id, docs: [] }; }
+        });
+        const docResults = await Promise.all(docPromises);
+        const docMap = {};
+        docResults.forEach((r) => { docMap[r.projectId] = r.docs; });
+        setDocuments(docMap);
       } catch (err) {
         console.error('Failed to load projects:', err);
       } finally {
@@ -84,6 +96,7 @@ export default function AdminProjects() {
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">NGO</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Budget</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Score</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Reports</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
                   <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
@@ -117,6 +130,11 @@ export default function AdminProjects() {
                       <span className="font-semibold text-primary-600">{Number(project.impact_score).toFixed(1)}</span>
                     </td>
                     <td className="px-4 py-3">
+                      <button onClick={() => setDocModal(project)} className="text-xs text-primary-600 hover:text-primary-500 font-medium">
+                        {documents[project.id]?.length || 0} reports
+                      </button>
+                    </td>
+                    <td className="px-4 py-3">
                       <select
                         value={project.status}
                         onChange={(e) => handleStatusChange(project.id, e.target.value)}
@@ -136,6 +154,37 @@ export default function AdminProjects() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+      {/* Document Modal */}
+      {docModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setDocModal(null)}>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Reports - {docModal.title}</h3>
+              <button onClick={() => setDocModal(null)} className="text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
+            {(!documents[docModal.id] || documents[docModal.id].length === 0) ? (
+              <p className="text-sm text-gray-500">No reports uploaded</p>
+            ) : (
+              <div className="space-y-2">
+                {documents[docModal.id].map((doc) => (
+                  <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{doc.file_name}</p>
+                        <p className="text-xs text-gray-500">by {doc.uploaded_by_name} • {new Date(doc.created_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    <a href={documentAPI.getDownloadUrl(doc.id)} target="_blank" rel="noopener noreferrer" className="btn-secondary text-xs px-2 py-1 shrink-0 ml-2">Download</a>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

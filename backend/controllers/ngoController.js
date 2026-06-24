@@ -46,8 +46,15 @@ exports.getNgoById = async (req, res, next) => {
 
 exports.getMyNgo = async (req, res, next) => {
   try {
-    const result = await db.query('SELECT * FROM ngos WHERE user_id = $1', [req.user.id]);
-    if (result.rows.length === 0) return res.status(404).json({ error: 'NGO not found' });
+    let result = await db.query('SELECT * FROM ngos WHERE user_id = $1', [req.user.id]);
+
+    if (result.rows.length === 0) {
+      result = await db.query(
+        'INSERT INTO ngos (user_id, ngo_name) VALUES ($1, $2) RETURNING *',
+        [req.user.id, req.user.name]
+      );
+    }
+
     res.json(result.rows[0]);
   } catch (error) {
     next(error);
@@ -85,10 +92,10 @@ exports.rejectNgo = async (req, res, next) => {
 exports.updateNgo = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { ngo_name, registration_number, phone, address } = req.body;
+    const { ngo_name, registration_number, email, phone, address } = req.body;
     const result = await db.query(
-      'UPDATE ngos SET ngo_name = COALESCE($1, ngo_name), registration_number = COALESCE($2, registration_number), phone = COALESCE($3, phone), address = COALESCE($4, address) WHERE id = $5 RETURNING *',
-      [ngo_name, registration_number, phone, address, id]
+      'UPDATE ngos SET ngo_name = COALESCE($1, ngo_name), registration_number = COALESCE($2, registration_number), email = COALESCE($3, email), phone = COALESCE($4, phone), address = COALESCE($5, address) WHERE id = $6 RETURNING *',
+      [ngo_name, registration_number, email, phone, address, id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'NGO not found' });
     res.json(result.rows[0]);

@@ -20,11 +20,18 @@ router.post('/register', authenticate, authorize('company'), async (req, res, ne
 
 router.get('/me', authenticate, authorize('company'), async (req, res, next) => {
   try {
-    const result = await db.query(
+    let result = await db.query(
       'SELECT c.*, u.name, u.email FROM companies c JOIN users u ON c.user_id = u.id WHERE c.user_id = $1',
       [req.user.id]
     );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Company not found' });
+
+    if (result.rows.length === 0) {
+      result = await db.query(
+        'INSERT INTO companies (user_id, company_name) VALUES ($1, $2) RETURNING *',
+        [req.user.id, req.user.name]
+      );
+    }
+
     res.json(result.rows[0]);
   } catch (error) {
     next(error);

@@ -16,6 +16,7 @@ import IndiaMap from './pages/public/IndiaMap';
 
 // Admin pages
 import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminCompanies from './pages/admin/AdminCompanies';
 import AdminNgos from './pages/admin/AdminNgos';
 import AdminProjects from './pages/admin/AdminProjects';
 import AdminAnalytics from './pages/admin/AdminAnalytics';
@@ -58,6 +59,7 @@ export default function App() {
 
       {/* Admin routes */}
       <Route path="/admin" element={<ProtectedRoute roles={['admin']}><DashboardLayout role="admin"><AdminDashboard /></DashboardLayout></ProtectedRoute>} />
+      <Route path="/admin/companies" element={<ProtectedRoute roles={['admin']}><DashboardLayout role="admin"><AdminCompanies /></DashboardLayout></ProtectedRoute>} />
       <Route path="/admin/ngos" element={<ProtectedRoute roles={['admin']}><DashboardLayout role="admin"><AdminNgos /></DashboardLayout></ProtectedRoute>} />
       <Route path="/admin/projects" element={<ProtectedRoute roles={['admin']}><DashboardLayout role="admin"><AdminProjects /></DashboardLayout></ProtectedRoute>} />
       <Route path="/admin/analytics" element={<ProtectedRoute roles={['admin']}><DashboardLayout role="admin"><AdminAnalytics /></DashboardLayout></ProtectedRoute>} />

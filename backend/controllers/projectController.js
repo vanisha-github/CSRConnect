@@ -14,13 +14,15 @@ exports.createProject = async (req, res, next) => {
       companyId = req.body.company_id;
     }
 
-    if (!title || !category) {
-      return res.status(400).json({ error: 'Title and category are required' });
+    if (!title || !category || !budget) {
+      return res.status(400).json({ error: 'Title, category, and budget are required' });
     }
 
+    const status = !end_date ? 'active' : 'pending';
+
     const result = await db.query(
-      'INSERT INTO projects (company_id, title, description, category, budget, location, latitude, longitude, start_date, end_date) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
-      [companyId, title, description, category, budget, location, latitude, longitude, start_date, end_date]
+      'INSERT INTO projects (company_id, title, description, category, budget, location, latitude, longitude, start_date, end_date, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
+      [companyId, title, description, category, budget, location, latitude, longitude, start_date, end_date, status]
     );
 
     const project = result.rows[0];
@@ -115,6 +117,11 @@ exports.updateProject = async (req, res, next) => {
     const { id } = req.params;
     const { title, description, category, budget, location, latitude, longitude, start_date, end_date, status } = req.body;
 
+    let resolvedEndDate = end_date || null;
+    if (status === 'completed' && !end_date) {
+      resolvedEndDate = new Date().toISOString().split('T')[0];
+    }
+
     const result = await db.query(
       `UPDATE projects SET
         title = COALESCE($1, title),
@@ -128,7 +135,7 @@ exports.updateProject = async (req, res, next) => {
         end_date = COALESCE($9, end_date),
         status = COALESCE($10, status)
       WHERE id = $11 RETURNING *`,
-      [title, description, category, budget, location, latitude, longitude, start_date, end_date, status, id]
+      [title, description, category, budget, location, latitude, longitude, start_date, resolvedEndDate, status, id]
     );
 
     if (result.rows.length === 0) return res.status(404).json({ error: 'Project not found' });

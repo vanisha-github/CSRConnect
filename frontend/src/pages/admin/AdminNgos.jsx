@@ -45,7 +45,7 @@ export default function AdminNgos() {
 
   const handleEdit = (ngo) => {
     setEditing(ngo.id);
-    setEditForm({ ngo_name: ngo.ngo_name, registration_number: ngo.registration_number, phone: ngo.phone, address: ngo.address });
+    setEditForm({ ngo_name: ngo.ngo_name, registration_number: ngo.registration_number, email: ngo.email || ngo.user_email, phone: ngo.phone, address: ngo.address });
   };
 
   const handleSave = async (id) => {
@@ -95,12 +95,25 @@ export default function AdminNgos() {
                         <span className="font-medium text-gray-900 dark:text-gray-100">{ngo.ngo_name}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{ngo.registration_number}</td>
+                    <td className="px-4 py-3 text-sm">
+                      {editing === ngo.id ? (
+                        <input value={editForm.registration_number} onChange={(e) => setEditForm({ ...editForm, registration_number: e.target.value })} className="input-field text-sm" />
+                      ) : (
+                        <span className="text-gray-600 dark:text-gray-400">{ngo.registration_number}</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        <p>{ngo.email}</p>
-                        {ngo.phone && <p className="text-xs">{ngo.phone}</p>}
-                      </div>
+                      {editing === ngo.id ? (
+                        <div className="space-y-1">
+                          <input value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} className="input-field text-sm" placeholder="Email" />
+                          <input value={editForm.phone || ''} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} className="input-field text-sm" placeholder="Phone" />
+                        </div>
+                      ) : (
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          <p>{ngo.email}</p>
+                          {ngo.phone && <p className="text-xs">{ngo.phone}</p>}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <span className="font-semibold text-primary-600">{Number(ngo.trust_score).toFixed(1)}</span>

@@ -26,6 +26,19 @@ exports.register = async (req, res, next) => {
     );
 
     const user = result.rows[0];
+
+    if (role === 'company') {
+      await db.query(
+        'INSERT INTO companies (user_id, company_name) VALUES ($1, $2)',
+        [user.id, name]
+      );
+    } else if (role === 'ngo') {
+      await db.query(
+        'INSERT INTO ngos (user_id, ngo_name) VALUES ($1, $2)',
+        [user.id, name]
+      );
+    }
+
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES_IN || '7d',
     });

@@ -35,14 +35,26 @@ exports.getNgoPerformance = async (req, res, next) => {
   try {
     const result = await db.query(`
       SELECT n.id, n.ngo_name, n.trust_score, n.verified,
-        COUNT(p.id) as total_projects,
-        COUNT(CASE WHEN p.status = 'completed' THEN 1 END) as completed_projects,
-        COALESCE(SUM(p.budget), 0) as total_budget,
-        COALESCE(SUM(pu.beneficiaries_reached), 0) as total_beneficiaries
+        COALESCE(p_stats.total_projects, 0) as total_projects,
+        COALESCE(p_stats.completed_projects, 0) as completed_projects,
+        COALESCE(p_stats.total_budget, 0) as total_budget,
+        COALESCE(pu_stats.total_beneficiaries, 0) as total_beneficiaries
       FROM ngos n
-      LEFT JOIN projects p ON n.id = p.ngo_id
-      LEFT JOIN project_updates pu ON p.id = pu.project_id
-      GROUP BY n.id, n.ngo_name, n.trust_score, n.verified
+      LEFT JOIN (
+        SELECT ngo_id,
+          COUNT(*) as total_projects,
+          COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_projects,
+          SUM(budget) as total_budget
+        FROM projects
+        GROUP BY ngo_id
+      ) p_stats ON n.id = p_stats.ngo_id
+      LEFT JOIN (
+        SELECT p.ngo_id,
+          SUM(pu.beneficiaries_reached) as total_beneficiaries
+        FROM project_updates pu
+        JOIN projects p ON pu.project_id = p.id
+        GROUP BY p.ngo_id
+      ) pu_stats ON n.id = pu_stats.ngo_id
       ORDER BY n.trust_score DESC
     `);
     res.json(result.rows);

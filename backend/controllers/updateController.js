@@ -15,7 +15,7 @@ exports.addUpdate = async (req, res, next) => {
     );
 
     if (parseFloat(progress_percentage) >= 100) {
-      await db.query("UPDATE projects SET status = 'completed' WHERE id = $1", [project_id]);
+      await db.query("UPDATE projects SET status = 'completed', end_date = COALESCE(end_date, CURRENT_DATE) WHERE id = $1", [project_id]);
     } else if (parseFloat(progress_percentage) > 0) {
       await db.query("UPDATE projects SET status = 'in_progress' WHERE id = $1", [project_id]);
     }
