@@ -5,8 +5,9 @@ A full-stack platform for managing and tracking Corporate Social Responsibility 
 ## Tech Stack
 
 - **Frontend:** React.js, Tailwind CSS, React Router, Axios, Recharts, React Leaflet
-- **Backend:** Node.js, Express.js, JWT Authentication, Multer
-- **Database:** PostgreSQL
+- **Backend:** Node.js, Express.js, JWT Authentication, Multer (Cloudinary storage)
+- **Database:** PostgreSQL (Neon or local)
+- **File Storage:** Cloudinary
 
 ## Project Structure
 
@@ -14,10 +15,9 @@ A full-stack platform for managing and tracking Corporate Social Responsibility 
 ├── backend/
 │   ├── config/             # Database connection & seed
 │   ├── controllers/        # Route handlers
-│   ├── middleware/          # Auth, upload, error handling
+│   ├── middleware/          # Auth, upload (Cloudinary), error handling
 │   ├── routes/             # Express routes
 │   ├── services/           # Impact score engine
-│   ├── uploads/            # File uploads (gitignored)
 │   ├── migrate_v*.js       # Database migrations
 │   └── server.js           # Entry point
 ├── frontend/
@@ -39,8 +39,9 @@ A full-stack platform for managing and tracking Corporate Social Responsibility 
 ### Prerequisites
 
 - Node.js (v18+)
-- PostgreSQL (v14+)
+- PostgreSQL (v14+) or Neon account
 - npm
+- Cloudinary account (for file uploads)
 
 ### 1. Database Setup
 
@@ -59,9 +60,16 @@ psql -U postgres -d csr_esg_platform -f database/schema.sql
 cd backend
 npm install
 
-# Create .env file (see secrets section below)
+# Create .env file (see below)
 
-# Run migrations
+# Run all migrations in order
+node migrate_v2.js
+node migrate_v3.js
+node migrate_v4.js
+node migrate_v5.js
+node migrate_v6.js
+node migrate_v7.js
+node migrate_v8.js
 node migrate_v9.js
 node migrate_v10.js
 
@@ -80,25 +88,37 @@ The backend runs on `http://localhost:5000`.
 cd frontend
 npm install
 
-# Development
-npm run dev            # Starts on http://localhost:3000 with proxy to backend
+# Development (proxies API calls to backend)
+npm run dev    # Starts on http://localhost:3000
 
 # Production build
-npm run build          # Outputs to frontend/dist/
+npm run build  # Outputs to frontend/dist/
 ```
+
+Set `VITE_API_URL` environment variable for production builds (the full backend URL + `/api`, e.g. `https://your-backend.com/api`). In development it defaults to `/api` and uses the Vite proxy.
 
 ### 4. Environment Variables (`.env`)
 
 Create `backend/.env`:
 
 ```env
+# Database (local)
 DB_HOST=localhost
 DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=yourpassword
 DB_NAME=csr_esg_platform
+
+# or use a single connection string (Neon/Render)
+DATABASE_URL=postgresql://user:password@host/db?sslmode=require
+
 JWT_SECRET=<generate this>
 PORT=5000
+
+# Cloudinary
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
 ```
 
 Generate a secure JWT secret:
@@ -123,42 +143,14 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 | NGO     | arun@nari.org       | password123 |
 | NGO     | kavita@skill.org    | password123 |
 
-## Deployment
-
-### Build frontend
-```bash
-cd frontend && npm run build
-```
-
-### Serve in production
-**Option A — Backend serves frontend statically:**
-Add to `backend/server.js`:
-```js
-app.use(express.static(path.join(__dirname, '../frontend/dist')));
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../frontend/dist/index.html')));
-```
-
-**Option B — Nginx/Caddy reverse proxy:**
-- Serve `frontend/dist/` as static files
-- Proxy `/api/*` and `/uploads/*` to backend
-
-### Process management
-Use `pm2` or `systemd` to keep the backend alive:
-```bash
-npm install -g pm2
-pm2 start backend/server.js --name csr-backend
-```
-
 ## Features
 
 ### Core
 - **Role-based Authentication:** Admin, Company, NGO, Public User
-- **NGO Management:** Verify, reject, edit NGOs
-- **CSR Project Management:** Create, assign NGOs, status workflow
+- **NGO Management:** Verify, reject, edit NGOs with trust scoring
+- **CSR Project Management:** Create, assign NGOs, status workflow (pending → active → completed)
 - **Progress Tracking:** Beneficiaries, budget utilization, progress %, file attachments
 - **Document Upload:** PDF reports, images, supporting documents per project
-- **Impact Score Engine:** Auto-calculates scores based on performance
-- **NGO Trust Score:** Based on completion rate, reporting consistency, verification
 
 ### ESG & SDG
 - **ESG Pillar Classification:** Each project tagged as Environmental / Social / Governance
@@ -167,33 +159,34 @@ pm2 start backend/server.js --name csr-backend
 
 ### Review & Visibility Workflow
 - **NGO submits** progress updates, reports, and gallery images
-- **Company reviews** each submission — check/uncheck review, add private feedback
-- **Visibility toggle** (Public/Private) — only available *after* review
+- **Company reviews** each submission — mark reviewed, add private feedback
+- **Visibility toggle** (Public/Private) — only available after review
 - **Reviewed badge + company feedback** visible to the NGO on their project page
+- Only reviewed + public content appears on the public dashboard
 
 ### Admin
-- **Admin Dashboard:** Overview stats, category bar chart
+- **Dashboard:** Overview stats with category breakdown chart
 - **Manage NGOs:** Edit details, verify/reject
 - **Manage Companies:** Edit name, industry, description
-- **Manage Projects:** Edit fields, verify projects (verified projects counted in public stats)
+- **Manage Projects:** Edit fields, verify projects
 
 ### Public Dashboard
-- **Project listings:** Shows in_progress and completed projects
-- **Project detail page:** Photos, progress, SDG tags, NGO info
-- **NGO profiles:** Bio, focus areas, projects, gallery
-- **Impact Dashboard:** Static ESG metrics, impact score cards
-- **Gallery page:** Masonry layout of all public project images
-
-### Geo & Visualization
+- **Project listings & detail pages:** Photos, progress timeline, SDG tags, NGO partner info
+- **NGO profiles:** Bio, focus areas, completed/ongoing projects, gallery
+- **Impact Dashboard:** ESG metrics, impact score cards
+- **Gallery page:** All public project images and cover photos
 - **India Impact Map:** Geo-visualization with React Leaflet
-- **Spending over time chart:** 5-year monthly budget utilization with horizontal scroll
-- **Analytics dashboards:** Company stats (budget, impact, status breakdown), NGO performance, admin metrics
 
-### UI
-- **Dark Mode:** Full dark mode support
-- **Responsive Design:** Modern SaaS-style UI
-- **Cover images:** Per-project cover photo with upload
-- **Photo Gallery:** Grid gallery per project with upload capability
+### Analytics
+- **Admin analytics:** Platform-wide stats
+- **Company analytics:** Budget utilization, impact metrics, status breakdown, ESG distribution
+- **NGO analytics:** Performance stats, ranking by trust score
+- **Public analytics:** Aggregate statistics, ESG metrics
+
+### File Handling
+- **Cloudinary uploads:** All files stored on Cloudinary (no local disk storage)
+- **Download proxy:** `GET /api/files/download?url=...&name=...` forces correct filenames on download
+- **Automatic resource type:** Images delivered as `image`, PDFs/docs as `raw`
 
 ## API Endpoints
 
@@ -239,7 +232,7 @@ pm2 start backend/server.js --name csr-backend
 ### Updates (Progress Reports)
 - `POST /api/updates` — Add progress update (NGO, with optional file)
 - `GET /api/updates/:projectId` — Get updates
-- `PUT /api/updates/:id` — Edit update (NGO)
+- `PUT /api/updates/:id` — Edit update (NGO, resets review state)
 - `DELETE /api/updates/:id` — Delete update (NGO)
 - `PATCH /api/updates/:id/visibility` — Toggle public/private (Company, after review)
 - `PATCH /api/updates/:id/review` — Review update — set reviewed + optional comment (Company)
@@ -252,6 +245,9 @@ pm2 start backend/server.js --name csr-backend
 - `PATCH /api/documents/:id/visibility` — Toggle public/private (Company, after review)
 - `PATCH /api/documents/:id/review` — Review document — set reviewed + optional comment (Company)
 - `GET /api/documents/download/:id` — Download document
+
+### Files
+- `GET /api/files/download?url=...&name=...` — Proxy download with correct filename (no auth)
 
 ### Analytics
 - `GET /api/analytics/admin` — Admin dashboard stats
@@ -269,3 +265,31 @@ pm2 start backend/server.js --name csr-backend
 - `GET /api/public/ngos` — List NGOs with focus areas
 - `GET /api/public/ngos/:id` — NGO public profile
 - `GET /api/public/gallery` — Public gallery
+
+## Deployment
+
+### Build frontend
+```bash
+cd frontend && npm run build
+```
+
+Set `VITE_API_URL` to your backend URL during build.
+
+### Serve in production
+**Option A — Backend serves frontend statically:**
+Add to `backend/server.js`:
+```js
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
+app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../frontend/dist/index.html')));
+```
+
+**Option B — Separate hosting (e.g. Vercel + Render):**
+- Deploy `frontend/` to Vercel with `VITE_API_URL` pointing to backend
+- Deploy `backend/` to Render with `DATABASE_URL` and Cloudinary env vars
+- Ensure CORS is configured on the backend
+
+### Process management
+```bash
+npm install -g pm2
+pm2 start backend/server.js --name csr-backend
+```
