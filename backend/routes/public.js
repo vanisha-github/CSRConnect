@@ -31,7 +31,7 @@ router.get('/projects', async (req, res, next) => {
       FROM projects p
       LEFT JOIN companies c ON p.company_id = c.id
       LEFT JOIN ngos n ON p.ngo_id = n.id
-      WHERE p.status IN ('completed', 'in_progress', 'active')
+      WHERE p.status IN ('completed', 'in_progress', 'active', 'pending')
       ORDER BY p.created_at DESC
     `);
     res.json(result.rows.map(sanitizeProject));
@@ -117,14 +117,14 @@ router.get('/gallery', async (req, res, next) => {
     const covers = await db.query(`
       SELECT p.id as project_id, p.title, 'cover' as type, p.cover_image as file_name, p.cover_image as file_path, p.created_at
       FROM projects p
-      WHERE p.status IN ('completed', 'in_progress', 'active') AND p.cover_image IS NOT NULL AND p.cover_image != ''
+      WHERE p.status IN ('completed', 'in_progress', 'active', 'pending') AND p.cover_image IS NOT NULL AND p.cover_image != ''
       ORDER BY p.created_at DESC
     `);
     const docImages = await db.query(`
       SELECT p.id as project_id, p.title, 'document' as type, d.file_name, d.file_path, d.created_at
       FROM documents d
       JOIN projects p ON d.project_id = p.id
-      WHERE p.status IN ('completed', 'in_progress', 'active') AND d.is_public = true
+      WHERE p.status IN ('completed', 'in_progress', 'active', 'pending') AND d.is_public = true
         AND d.file_name ~* '\\.(png|jpg|jpeg|gif|svg|webp)$'
       ORDER BY d.created_at DESC
     `);
