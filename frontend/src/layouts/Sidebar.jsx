@@ -23,17 +23,18 @@ const ngoLinks = [
   { to: '/ngo/reports', label: 'Upload Reports', icon: 'M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12' },
 ];
 
-function NavLink({ to, label, icon, active }) {
+function NavLink({ to, label, icon, active, onClick }) {
   return (
     <Link
       to={to}
+      onClick={onClick}
       className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
         active
           ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
           : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
       }`}
     >
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={icon} />
       </svg>
       <span className="text-sm font-medium">{label}</span>
@@ -41,15 +42,15 @@ function NavLink({ to, label, icon, active }) {
   );
 }
 
-export default function Sidebar({ links, role }) {
+export default function Sidebar({ links, role, mobileOpen, onMobileClose }) {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const { user } = useAuth();
 
   const roleLinks = role === 'admin' ? adminLinks : role === 'company' ? companyLinks : ngoLinks;
 
-  return (
-    <aside className={`${collapsed ? 'w-16' : 'w-64'} bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300`}>
+  const sidebarContent = (
+    <aside className={`${collapsed ? 'w-16' : 'w-64'} bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 h-full`}>
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           {!collapsed && (
@@ -71,7 +72,7 @@ export default function Sidebar({ links, role }) {
 
       <nav className="flex-1 p-3 space-y-1">
         {roleLinks.map((link) => (
-          <NavLink key={link.to} {...link} active={location.pathname === link.to} />
+          <NavLink key={link.to} {...link} active={location.pathname === link.to} onClick={onMobileClose} />
         ))}
       </nav>
 
@@ -82,5 +83,20 @@ export default function Sidebar({ links, role }) {
         </div>
       )}
     </aside>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <div className="hidden md:flex">{sidebarContent}</div>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          <div className="fixed inset-0 bg-black/50" onClick={onMobileClose} />
+          <div className="fixed left-0 top-0 h-full">{sidebarContent}</div>
+        </div>
+      )}
+    </>
   );
 }
