@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = '/api';
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -115,11 +115,9 @@ export const documentAPI = {
   delete: (id) => api.delete(`/documents/${id}`),
   toggleVisibility: (id, is_public) => api.patch(`/documents/${id}/visibility`, { is_public }),
   review: (id, data) => api.patch(`/documents/${id}/review`, data),
-  getDownloadUrl: (id) => `${API_BASE}/documents/download/${id}`,
-  getViewUrl: (filePath) => filePath,
   getDownloadUrl: (filePath, fileName) => {
     if (!filePath) return '#';
-    return `/api/files/download?url=${encodeURIComponent(filePath)}&name=${encodeURIComponent(fileName || 'file')}`;
+    return `${API_BASE}/files/download?url=${encodeURIComponent(filePath)}&name=${encodeURIComponent(fileName || 'file')}`;
   },
   isImage: (fileName) => /\.(png|jpg|jpeg|gif|svg|webp)$/i.test(fileName),
   getMyGallery: () => api.get('/documents/my-gallery'),
@@ -135,7 +133,7 @@ export const publicAPI = {
 };
 
 export const fileAPI = {
-  getDownloadUrl: (url, name) => `/api/files/download?url=${encodeURIComponent(url)}&name=${encodeURIComponent(name || 'file')}`,
+  getDownloadUrl: (url, name) => `${API_BASE}/files/download?url=${encodeURIComponent(url)}&name=${encodeURIComponent(name || 'file')}`,
 };
 export const analyticsAPI = {
   getAdminStats: () => api.get('/analytics/admin'),
