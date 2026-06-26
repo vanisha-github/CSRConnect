@@ -77,7 +77,6 @@ export default function CompanyProjects() {
         <select value={filter} onChange={(e) => setFilter(e.target.value)} className="input-field sm:w-48">
           <option value="">All Status</option>
           <option value="pending">Pending</option>
-          <option value="active">Active</option>
           <option value="in_progress">In Progress</option>
           <option value="completed">Completed</option>
           <option value="cancelled">Cancelled</option>
@@ -133,7 +132,6 @@ export default function CompanyProjects() {
                   className="input-field text-xs flex-1"
                 >
                   <option value="pending">Pending</option>
-                  <option value="active">Active</option>
                   <option value="in_progress">In Progress</option>
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>

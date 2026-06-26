@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { projectAPI, ngoAPI, documentAPI } from '../../services/api';
-import StatusBadge from '../../components/StatusBadge';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import EmptyState from '../../components/EmptyState';
 
@@ -12,6 +11,8 @@ export default function AdminProjects() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('');
   const [docModal, setDocModal] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [editForm, setEditForm] = useState({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -54,13 +55,29 @@ export default function AdminProjects() {
     }
   };
 
-  const handleStatusChange = async (projectId, status) => {
+  const handleEdit = (project) => {
+    setEditing(project.id);
+    setEditForm({ title: project.title, category: project.category, budget: project.budget });
+  };
+
+  const handleSave = async (id) => {
     try {
-      await projectAPI.update(projectId, { status });
+      await projectAPI.update(id, editForm);
+      setEditing(null);
       const { data } = await projectAPI.getAll();
       setProjects(data);
     } catch (err) {
-      console.error('Status update failed:', err);
+      console.error('Update failed:', err);
+    }
+  };
+
+  const handleVerify = async (id, verified) => {
+    try {
+      await projectAPI.verify(id, verified);
+      const { data } = await projectAPI.getAll();
+      setProjects(data);
+    } catch (err) {
+      console.error('Verify failed:', err);
     }
   };
 
@@ -78,7 +95,6 @@ export default function AdminProjects() {
         <select value={filter} onChange={(e) => setFilter(e.target.value)} className="input-field sm:w-48">
           <option value="">All Status</option>
           <option value="pending">Pending</option>
-          <option value="active">Active</option>
           <option value="in_progress">In Progress</option>
           <option value="completed">Completed</option>
           <option value="cancelled">Cancelled</option>
@@ -97,7 +113,6 @@ export default function AdminProjects() {
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Budget</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Score</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Reports</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
                   <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
@@ -105,8 +120,17 @@ export default function AdminProjects() {
                 {filtered.map((project) => (
                   <tr key={project.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-gray-900 dark:text-gray-100">{project.title}</p>
-                      <p className="text-xs text-gray-500">{project.category}</p>
+                      {editing === project.id ? (
+                        <div className="space-y-1">
+                          <input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} className="input-field text-sm" />
+                          <input value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} className="input-field text-sm" placeholder="Category" />
+                        </div>
+                      ) : (
+                        <>
+                          <p className="font-medium text-gray-900 dark:text-gray-100">{project.title}</p>
+                          <p className="text-xs text-gray-500">{project.category}</p>
+                        </>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{project.company_name}</td>
                     <td className="px-4 py-3 text-sm">
@@ -134,21 +158,25 @@ export default function AdminProjects() {
                         {documents[project.id]?.length || 0} reports
                       </button>
                     </td>
-                    <td className="px-4 py-3">
-                      <select
-                        value={project.status}
-                        onChange={(e) => handleStatusChange(project.id, e.target.value)}
-                        className="input-field text-xs p-1"
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="active">Active</option>
-                        <option value="in_progress">In Progress</option>
-                        <option value="completed">Completed</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
-                    </td>
                     <td className="px-4 py-3 text-right">
-                      <StatusBadge status={project.status} />
+                      <div className="flex items-center justify-end gap-2">
+                        {editing === project.id ? (
+                          <>
+                            <button onClick={() => handleSave(project.id)} className="btn-success text-xs px-2 py-1">Save</button>
+                            <button onClick={() => setEditing(null)} className="btn-secondary text-xs px-2 py-1">Cancel</button>
+                          </>
+                        ) : (
+                          <>
+                            <button onClick={() => handleEdit(project)} className="btn-secondary text-xs px-2 py-1">Edit</button>
+                            <button
+                              onClick={() => handleVerify(project.id, !project.verified)}
+                              className={`text-xs px-2 py-1 rounded font-medium ${project.verified ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}`}
+                            >
+                              {project.verified ? 'Unverify' : 'Verify'}
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -169,20 +197,28 @@ export default function AdminProjects() {
               <p className="text-sm text-gray-500">No reports uploaded</p>
             ) : (
               <div className="space-y-2">
-                {documents[docModal.id].map((doc) => (
+                {documents[docModal.id].map((doc) => {
+                  const isImg = /\.(png|jpg|jpeg|gif|svg|webp)$/i.test(doc.file_name);
+                  return (
                   <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
                     <div className="flex items-center gap-3 min-w-0">
-                      <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                      </svg>
+                      {isImg ? (
+                        <img src={documentAPI.getViewUrl(doc.file_path)} alt="" className="w-8 h-8 object-cover rounded shrink-0" />
+                      ) : (
+                        <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                      )}
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{doc.file_name}</p>
+                        <a href={documentAPI.getViewUrl(doc.file_path)} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary-600 hover:text-primary-500 underline truncate block">
+                          {doc.file_name}
+                        </a>
                         <p className="text-xs text-gray-500">by {doc.uploaded_by_name} • {new Date(doc.created_at).toLocaleDateString()}</p>
                       </div>
                     </div>
-                    <a href={documentAPI.getDownloadUrl(doc.id)} target="_blank" rel="noopener noreferrer" className="btn-secondary text-xs px-2 py-1 shrink-0 ml-2">Download</a>
+                    <a href={documentAPI.getViewUrl(doc.file_path)} target="_blank" rel="noopener noreferrer" className="btn-secondary text-xs px-2 py-1 shrink-0 ml-2">View</a>
                   </div>
-                ))}
+                  );})}
               </div>
             )}
           </div>

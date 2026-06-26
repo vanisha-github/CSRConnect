@@ -47,6 +47,15 @@ export const ngoAPI = {
   verify: (id) => api.patch(`/ngos/${id}/verify`),
   reject: (id) => api.patch(`/ngos/${id}/reject`),
   update: (id, data) => api.put(`/ngos/${id}`, data),
+  uploadProfileImage: (formData) => api.post('/ngos/profile-image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  removeProfileImage: () => api.delete('/ngos/profile-image'),
+  getGallery: () => api.get('/ngos/gallery'),
+  uploadGalleryImage: (formData) => api.post('/ngos/gallery', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  deleteGalleryImage: (id) => api.delete(`/ngos/gallery/${id}`),
 };
 
 // Companies
@@ -54,6 +63,16 @@ export const companyAPI = {
   register: (data) => api.post('/companies/register', data),
   getMyCompany: () => api.get('/companies/me'),
   getAll: () => api.get('/companies'),
+  update: (id, data) => api.put(`/companies/${id}`, data),
+  uploadProfileImage: (formData) => api.post('/companies/profile-image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  removeProfileImage: () => api.delete('/companies/profile-image'),
+  getGallery: () => api.get('/companies/gallery'),
+  uploadGalleryImage: (formData) => api.post('/companies/gallery', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  deleteGalleryImage: (id) => api.delete(`/companies/gallery/${id}`),
 };
 
 // Projects
@@ -64,13 +83,27 @@ export const projectAPI = {
   update: (id, data) => api.put(`/projects/${id}`, data),
   delete: (id) => api.delete(`/projects/${id}`),
   assignNgo: (id, ngo_id) => api.patch(`/projects/${id}/assign`, { ngo_id }),
+  uploadCoverImage: (id, formData) => api.post(`/projects/${id}/cover-image`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  removeCoverImage: (id) => api.delete(`/projects/${id}/cover-image`),
+  verify: (id, verified) => api.patch(`/projects/${id}/verify`, { verified }),
 };
 
 // Updates
 export const updateAPI = {
   add: (data) => api.post('/updates', data),
+  addWithFile: (formData) => api.post('/updates', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
   getByProject: (projectId) => api.get(`/updates/${projectId}`),
   update: (id, data) => api.put(`/updates/${id}`, data),
+  updateWithFile: (id, formData) => api.put(`/updates/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  delete: (id) => api.delete(`/updates/${id}`),
+  toggleVisibility: (id, is_public) => api.patch(`/updates/${id}/visibility`, { is_public }),
+  review: (id, data) => api.patch(`/updates/${id}/review`, data),
 };
 
 // Documents
@@ -80,16 +113,30 @@ export const documentAPI = {
   }),
   getByProject: (projectId) => api.get(`/documents/${projectId}`),
   delete: (id) => api.delete(`/documents/${id}`),
+  toggleVisibility: (id, is_public) => api.patch(`/documents/${id}/visibility`, { is_public }),
+  review: (id, data) => api.patch(`/documents/${id}/review`, data),
   getDownloadUrl: (id) => `${API_BASE}/documents/download/${id}`,
+  getViewUrl: (filePath) => filePath,
+  getDownloadUrl: (filePath, fileName) => {
+    if (!filePath) return '#';
+    return `/api/files/download?url=${encodeURIComponent(filePath)}&name=${encodeURIComponent(fileName || 'file')}`;
+  },
+  isImage: (fileName) => /\.(png|jpg|jpeg|gif|svg|webp)$/i.test(fileName),
+  getMyGallery: () => api.get('/documents/my-gallery'),
 };
 
 // Public (no auth required)
 export const publicAPI = {
   getProjects: () => api.get('/public/projects'),
+  getProjectById: (id) => api.get(`/public/projects/${id}`),
   getNgos: () => api.get('/public/ngos'),
+  getNgoById: (id) => api.get(`/public/ngos/${id}`),
+  getGallery: () => api.get('/public/gallery'),
 };
 
-// Analytics
+export const fileAPI = {
+  getDownloadUrl: (url, name) => `/api/files/download?url=${encodeURIComponent(url)}&name=${encodeURIComponent(name || 'file')}`,
+};
 export const analyticsAPI = {
   getAdminStats: () => api.get('/analytics/admin'),
   getNgoPerformance: () => api.get('/analytics/ngo-performance'),
@@ -98,4 +145,5 @@ export const analyticsAPI = {
   getPublicStats: () => api.get('/analytics/public'),
   getMapData: () => api.get('/analytics/map'),
   getEsgMetrics: () => api.get('/analytics/esg'),
+  getCompanyEsgMetrics: () => api.get('/analytics/company-esg'),
 };

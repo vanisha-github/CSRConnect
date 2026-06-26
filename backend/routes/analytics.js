@@ -10,5 +10,6 @@ router.get('/ngo-stats', authenticate, authorize('ngo'), analyticsController.get
 router.get('/public', analyticsController.getPublicStats);
 router.get('/map', analyticsController.getMapData);
 router.get('/esg', analyticsController.getEsgMetrics);
+router.get('/company-esg', authenticate, authorize('company'), analyticsController.getCompanyEsgMetrics);
 
 module.exports = router;

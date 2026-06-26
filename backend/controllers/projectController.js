@@ -3,7 +3,7 @@ const { calculateImpactScore, SDG_MAP } = require('../services/impactService');
 
 exports.createProject = async (req, res, next) => {
   try {
-    const { title, description, category, budget, location, latitude, longitude, start_date, end_date } = req.body;
+    const { title, description, category, budget, location, latitude, longitude, start_date, end_date, cover_image, objectives, public_budget, description_public, location_public, esg_pillar } = req.body;
 
     let companyId;
     if (req.user.role === 'company') {
@@ -18,11 +18,12 @@ exports.createProject = async (req, res, next) => {
       return res.status(400).json({ error: 'Title, category, and budget are required' });
     }
 
-    const status = !end_date ? 'active' : 'pending';
+    const status = 'pending';
 
     const result = await db.query(
-      'INSERT INTO projects (company_id, title, description, category, budget, location, latitude, longitude, start_date, end_date, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
-      [companyId, title, description, category, budget, location, latitude, longitude, start_date, end_date, status]
+      'INSERT INTO projects (company_id, title, description, category, budget, location, latitude, longitude, start_date, end_date, status, cover_image, objectives, public_budget, description_public, location_public, esg_pillar) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *',
+      [companyId, title, description, category, budget, location, latitude, longitude, start_date, end_date, status, cover_image, objectives, public_budget !== false,
+        description_public !== false, location_public !== false, esg_pillar]
     );
 
     const project = result.rows[0];
@@ -115,11 +116,31 @@ exports.getProjectById = async (req, res, next) => {
 exports.updateProject = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { title, description, category, budget, location, latitude, longitude, start_date, end_date, status } = req.body;
+    const { title, description, category, budget, location, latitude, longitude, start_date, end_date, status, cover_image, objectives, public_budget, description_public, location_public, esg_pillar } = req.body;
 
-    let resolvedEndDate = end_date || null;
-    if (status === 'completed' && !end_date) {
-      resolvedEndDate = new Date().toISOString().split('T')[0];
+    const current = await db.query('SELECT * FROM projects WHERE id = $1', [id]);
+    if (current.rows.length === 0) return res.status(404).json({ error: 'Project not found' });
+    const existing = current.rows[0];
+
+    const newStatus = status || existing.status;
+    const today = new Date().toISOString().split('T')[0];
+
+    let newEndDate = existing.end_date;
+    if (end_date !== undefined && end_date !== '') {
+      newEndDate = end_date;
+    } else if (status === 'pending') {
+      newEndDate = null;
+    } else if (status === 'completed') {
+      newEndDate = existing.end_date;
+    } else if (status === 'cancelled' && !existing.actual_end_date) {
+      newEndDate = existing.end_date;
+    }
+
+    let actualEndDate = existing.actual_end_date;
+    if (status === 'completed') {
+      actualEndDate = today;
+    } else if (status === 'pending' || status === 'in_progress' || status === 'cancelled') {
+      actualEndDate = null;
     }
 
     const result = await db.query(
@@ -132,10 +153,26 @@ exports.updateProject = async (req, res, next) => {
         latitude = COALESCE($6, latitude),
         longitude = COALESCE($7, longitude),
         start_date = COALESCE($8, start_date),
-        end_date = COALESCE($9, end_date),
-        status = COALESCE($10, status)
-      WHERE id = $11 RETURNING *`,
-      [title, description, category, budget, location, latitude, longitude, start_date, resolvedEndDate, status, id]
+        end_date = $9,
+        status = $10,
+        actual_end_date = $11,
+        cover_image = COALESCE($12, cover_image),
+        objectives = COALESCE($13, objectives),
+        public_budget = COALESCE($14, public_budget),
+        description_public = COALESCE($15, description_public),
+        location_public = COALESCE($16, location_public),
+        esg_pillar = COALESCE($17, esg_pillar)
+      WHERE id = $18 RETURNING *`,
+      [title || existing.title, description || existing.description, category || existing.category,
+       budget || existing.budget, location || existing.location, latitude || existing.latitude,
+       longitude || existing.longitude, start_date || existing.start_date,
+       newEndDate, newStatus, actualEndDate,
+       cover_image || existing.cover_image, objectives || existing.objectives,
+       public_budget !== undefined ? public_budget : existing.public_budget,
+       description_public !== undefined ? description_public : existing.description_public,
+       location_public !== undefined ? location_public : existing.location_public,
+       esg_pillar || existing.esg_pillar,
+       id]
     );
 
     if (result.rows.length === 0) return res.status(404).json({ error: 'Project not found' });
@@ -155,16 +192,60 @@ exports.deleteProject = async (req, res, next) => {
   }
 };
 
+exports.uploadCoverImage = async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const { id } = req.params;
+    const result = await db.query(
+      'UPDATE projects SET cover_image = $1 WHERE id = $2 RETURNING *',
+      [req.file.path, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Project not found' });
+    res.json(result.rows[0]);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.removeCoverImage = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await db.query(
+      'UPDATE projects SET cover_image = NULL WHERE id = $1 RETURNING *',
+      [id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Project not found' });
+    res.json(result.rows[0]);
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.assignNgo = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { ngo_id } = req.body;
 
     const result = await db.query(
-      "UPDATE projects SET ngo_id = $1, status = CASE WHEN status = 'pending' THEN 'active' ELSE status END WHERE id = $2 RETURNING *",
+      'UPDATE projects SET ngo_id = $1 WHERE id = $2 RETURNING *',
       [ngo_id, id]
     );
 
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Project not found' });
+    res.json(result.rows[0]);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.verifyProject = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { verified } = req.body;
+    const result = await db.query(
+      'UPDATE projects SET verified = $1 WHERE id = $2 RETURNING *',
+      [verified, id]
+    );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Project not found' });
     res.json(result.rows[0]);
   } catch (error) {

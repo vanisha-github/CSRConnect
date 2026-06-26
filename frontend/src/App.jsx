@@ -11,8 +11,11 @@ import Register from './pages/Register';
 import Home from './pages/public/Home';
 import PublicProjects from './pages/public/PublicProjects';
 import PublicNgos from './pages/public/PublicNgos';
+import PublicNgoProfile from './pages/public/PublicNgoProfile';
+import PublicProjectDetail from './pages/public/PublicProjectDetail';
 import ImpactDashboard from './pages/public/ImpactDashboard';
 import IndiaMap from './pages/public/IndiaMap';
+import PublicGallery from './pages/public/PublicGallery';
 
 // Admin pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -49,9 +52,12 @@ export default function App() {
       {/* Public routes */}
       <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
       <Route path="/public/projects" element={<PublicLayout><PublicProjects /></PublicLayout>} />
+      <Route path="/public/projects/:id" element={<PublicLayout><PublicProjectDetail /></PublicLayout>} />
       <Route path="/public/ngos" element={<PublicLayout><PublicNgos /></PublicLayout>} />
+      <Route path="/public/ngos/:id" element={<PublicLayout><PublicNgoProfile /></PublicLayout>} />
       <Route path="/public/impact" element={<PublicLayout><ImpactDashboard /></PublicLayout>} />
       <Route path="/public/map" element={<PublicLayout><IndiaMap /></PublicLayout>} />
+      <Route path="/public/gallery" element={<PublicLayout><PublicGallery /></PublicLayout>} />
 
       {/* Auth routes */}
       <Route path="/login" element={isAuthenticated ? <Navigate to={`/${role}`} /> : <Login />} />

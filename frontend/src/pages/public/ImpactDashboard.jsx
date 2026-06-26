@@ -40,48 +40,56 @@ export default function ImpactDashboard() {
 
       {/* ESG Metrics */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="card">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 uppercase tracking-wider">Environmental</h3>
+        <div className="card border-l-4 border-green-500">
+          <h3 className="text-sm font-semibold text-green-700 dark:text-green-300 mb-4 uppercase tracking-wider">Environmental</h3>
           <div className="space-y-4">
             <div>
-              <p className="text-sm text-gray-500">Trees Planted</p>
-              <p className="text-2xl font-bold text-green-600">{esg?.environmental?.trees_planted?.toLocaleString() || 0}</p>
+              <p className="text-sm text-gray-500">Projects</p>
+              <p className="text-2xl font-bold text-green-600">{esg?.environmental?.projects || 0}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Water Conserved (people)</p>
-              <p className="text-2xl font-bold text-blue-600">{esg?.environmental?.water_conserved?.toLocaleString() || 0}</p>
+              <p className="text-sm text-gray-500">Beneficiaries</p>
+              <p className="text-2xl font-bold text-green-600">{(esg?.environmental?.beneficiaries || 0).toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Budget Allocated</p>
+              <p className="text-2xl font-bold text-green-600">₹{(esg?.environmental?.budget || 0).toLocaleString()}</p>
             </div>
           </div>
         </div>
 
-        <div className="card">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 uppercase tracking-wider">Social</h3>
+        <div className="card border-l-4 border-blue-500">
+          <h3 className="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-4 uppercase tracking-wider">Social</h3>
           <div className="space-y-4">
             <div>
-              <p className="text-sm text-gray-500">Students Educated</p>
-              <p className="text-2xl font-bold text-purple-600">{esg?.social?.students_educated?.toLocaleString() || 0}</p>
+              <p className="text-sm text-gray-500">Projects</p>
+              <p className="text-2xl font-bold text-blue-600">{esg?.social?.projects || 0}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Women Empowered</p>
-              <p className="text-2xl font-bold text-yellow-600">{esg?.social?.women_empowered?.toLocaleString() || 0}</p>
+              <p className="text-sm text-gray-500">Beneficiaries</p>
+              <p className="text-2xl font-bold text-blue-600">{(esg?.social?.beneficiaries || 0).toLocaleString()}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Beneficiaries</p>
-              <p className="text-2xl font-bold text-primary-600">{esg?.social?.beneficiaries_reached?.toLocaleString() || 0}</p>
+              <p className="text-sm text-gray-500">Budget Allocated</p>
+              <p className="text-2xl font-bold text-blue-600">₹{(esg?.social?.budget || 0).toLocaleString()}</p>
             </div>
           </div>
         </div>
 
-        <div className="card">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 uppercase tracking-wider">Governance</h3>
+        <div className="card border-l-4 border-purple-500">
+          <h3 className="text-sm font-semibold text-purple-700 dark:text-purple-300 mb-4 uppercase tracking-wider">Governance</h3>
           <div className="space-y-4">
             <div>
-              <p className="text-sm text-gray-500">Verified NGOs</p>
-              <p className="text-2xl font-bold text-blue-600">{esg?.governance?.verified_ngos || 0}</p>
+              <p className="text-sm text-gray-500">Projects</p>
+              <p className="text-2xl font-bold text-purple-600">{esg?.governance?.projects || 0}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Reports Uploaded</p>
-              <p className="text-2xl font-bold text-purple-600">{esg?.governance?.reports_uploaded || 0}</p>
+              <p className="text-sm text-gray-500">Beneficiaries</p>
+              <p className="text-2xl font-bold text-purple-600">{(esg?.governance?.beneficiaries || 0).toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Budget Allocated</p>
+              <p className="text-2xl font-bold text-purple-600">₹{(esg?.governance?.budget || 0).toLocaleString()}</p>
             </div>
           </div>
         </div>

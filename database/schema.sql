@@ -98,3 +98,28 @@ CREATE INDEX idx_project_updates_project ON project_updates(project_id);
 CREATE INDEX idx_documents_project ON documents(project_id);
 CREATE INDEX idx_impact_scores_project ON impact_scores(project_id);
 CREATE INDEX idx_sdg_mapping_project ON sdg_mapping(project_id);
+
+-- Migration: add file support to project_updates
+ALTER TABLE project_updates ADD file_name VARCHAR(255);
+ALTER TABLE project_updates ADD file_path VARCHAR(500);
+
+-- Migration: add profile images to ngos and companies
+ALTER TABLE ngos ADD profile_image VARCHAR(500);
+ALTER TABLE companies ADD profile_image VARCHAR(500);
+
+-- Profile galleries
+CREATE TABLE ngo_gallery (
+  id SERIAL PRIMARY KEY,
+  ngo_id INT NOT NULL REFERENCES ngos(id) ON DELETE CASCADE,
+  file_name VARCHAR(255) NOT NULL,
+  file_path VARCHAR(500) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE company_gallery (
+  id SERIAL PRIMARY KEY,
+  company_id INT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  file_name VARCHAR(255) NOT NULL,
+  file_path VARCHAR(500) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

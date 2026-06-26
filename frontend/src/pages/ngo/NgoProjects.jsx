@@ -41,9 +41,10 @@ export default function NgoProjects() {
         <input type="text" placeholder="Search projects..." value={search} onChange={(e) => setSearch(e.target.value)} className="input-field flex-1" />
         <select value={filter} onChange={(e) => setFilter(e.target.value)} className="input-field sm:w-48">
           <option value="">All Status</option>
-          <option value="active">Active</option>
+          <option value="pending">Pending</option>
           <option value="in_progress">In Progress</option>
           <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
         </select>
       </div>
 

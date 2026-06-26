@@ -8,6 +8,7 @@ export default function PublicLayout({ children }) {
     { to: '/public/projects', label: 'Projects' },
     { to: '/public/ngos', label: 'NGOs' },
     { to: '/public/impact', label: 'Impact' },
+
     { to: '/public/map', label: 'India Map' },
   ];
 

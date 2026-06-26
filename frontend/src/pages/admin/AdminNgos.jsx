@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { ngoAPI } from '../../services/api';
-import StatusBadge from '../../components/StatusBadge';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import EmptyState from '../../components/EmptyState';
 
@@ -77,7 +76,6 @@ export default function AdminNgos() {
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Registration</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Contact</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Trust Score</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
                   <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
@@ -117,9 +115,6 @@ export default function AdminNgos() {
                     </td>
                     <td className="px-4 py-3">
                       <span className="font-semibold text-primary-600">{Number(ngo.trust_score).toFixed(1)}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={ngo.verified} />
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">

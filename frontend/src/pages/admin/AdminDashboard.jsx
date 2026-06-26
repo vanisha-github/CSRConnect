@@ -42,7 +42,7 @@ export default function AdminDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {categoryData.length > 0 && (
-          <BarChartComponent data={categoryData} xKey="name" yKey="value" title="Projects by Category" />
+          <BarChartComponent data={categoryData} xKey="name" yKey="value" title="Projects by Category" tickAngle={-45} />
         )}
         {statusData.length > 0 && (
           <PieChartComponent data={statusData} dataKey="value" nameKey="name" title="Project Status Distribution" />

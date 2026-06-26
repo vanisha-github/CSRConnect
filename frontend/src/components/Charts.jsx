@@ -2,14 +2,14 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#10b981'];
 
-export function BarChartComponent({ data, xKey = 'name', yKey = 'value', title, height = 300 }) {
+export function BarChartComponent({ data, xKey = 'name', yKey = 'value', title, height = 300, tickAngle = 0 }) {
   return (
     <div className="card">
       {title && <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">{title}</h3>}
       <ResponsiveContainer width="100%" height={height}>
-        <BarChart data={data}>
+        <BarChart data={data} margin={{ left: 20, right: 20, bottom: tickAngle < 0 ? 60 : 10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-          <XAxis dataKey={xKey} tick={{ fontSize: 12 }} stroke="#9ca3af" />
+          <XAxis dataKey={xKey} tick={{ fontSize: 11, angle: tickAngle, textAnchor: tickAngle < 0 ? 'end' : 'middle' }} height={tickAngle < 0 ? 80 : 30} stroke="#9ca3af" />
           <YAxis tick={{ fontSize: 12 }} stroke="#9ca3af" />
           <Tooltip
             contentStyle={{

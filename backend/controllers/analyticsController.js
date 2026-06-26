@@ -11,7 +11,7 @@ exports.getAdminStats = async (req, res, next) => {
     const verifiedNgos = await db.query('SELECT COUNT(*) as count FROM ngos WHERE verified = 1');
     const totalBeneficiaries = await db.query('SELECT COALESCE(SUM(beneficiaries_reached), 0) as total FROM project_updates');
 
-    const categoryStats = await db.query('SELECT category, COUNT(*) as count FROM projects GROUP BY category');
+    const categoryStats = await db.query('SELECT category, COUNT(*) as count FROM projects WHERE category IS NOT NULL GROUP BY category');
     const statusStats = await db.query('SELECT status, COUNT(*) as count FROM projects GROUP BY status');
 
     res.json({
@@ -70,21 +70,48 @@ exports.getCompanyStats = async (req, res, next) => {
     const companyId = company.rows[0].id;
 
     const projects = await db.query('SELECT COUNT(*) as count FROM projects WHERE company_id = $1', [companyId]);
-    const budget = await db.query("SELECT COALESCE(SUM(budget), 0) as total, COALESCE(SUM(CASE WHEN status = 'completed' THEN budget END), 0) as used FROM projects WHERE company_id = $1", [companyId]);
-    const active = await db.query("SELECT COUNT(*) as count FROM projects WHERE company_id = $1 AND status IN ('active', 'in_progress')", [companyId]);
+    const budget = await db.query("SELECT COALESCE(SUM(p.budget), 0) as total FROM projects p WHERE p.company_id = $1", [companyId]);
+    const utilized = await db.query("SELECT COALESCE(SUM(pu.budget_utilized), 0) as used FROM project_updates pu JOIN projects p ON pu.project_id = p.id WHERE p.company_id = $1", [companyId]);
+    const inProgress = await db.query("SELECT COUNT(*) as count FROM projects WHERE company_id = $1 AND status = 'in_progress'", [companyId]);
+    const pending = await db.query("SELECT COUNT(*) as count FROM projects WHERE company_id = $1 AND status = 'pending'", [companyId]);
     const completed = await db.query("SELECT COUNT(*) as count FROM projects WHERE company_id = $1 AND status = 'completed'", [companyId]);
-    const beneficiaries = await db.query('SELECT COALESCE(SUM(pu.beneficiaries_reached), 0) as total FROM projects p LEFT JOIN project_updates pu ON p.id = pu.project_id WHERE p.company_id = $1', [companyId]);
+    const cancelled = await db.query("SELECT COUNT(*) as count FROM projects WHERE company_id = $1 AND status = 'cancelled'", [companyId]);
+    const beneficiaries = await db.query('SELECT COALESCE(SUM(pu.beneficiaries_reached), 0) as total FROM project_updates pu JOIN projects p ON pu.project_id = p.id WHERE p.company_id = $1', [companyId]);
+
+    const pendingUpdateReviews = await db.query(
+      "SELECT COUNT(*) as count FROM project_updates pu JOIN projects p ON pu.project_id = p.id WHERE p.company_id = $1 AND (pu.reviewed IS NULL OR pu.reviewed = false)",
+      [companyId]
+    );
+    const pendingDocumentReviews = await db.query(
+      "SELECT COUNT(*) as count FROM documents d JOIN projects p ON d.project_id = p.id WHERE p.company_id = $1 AND (d.reviewed IS NULL OR d.reviewed = false)",
+      [companyId]
+    );
+
+    const impactScores = await db.query(`
+      SELECT COALESCE(AVG(i.score), 0) as avg_score
+      FROM projects p
+      JOIN impact_scores i ON p.id = i.project_id
+      WHERE p.company_id = $1
+    `, [companyId]);
 
     const categoryStats = await db.query('SELECT category, COUNT(*) as count FROM projects WHERE company_id = $1 GROUP BY category', [companyId]);
-    const monthlyBudget = await db.query("SELECT TO_CHAR(p.created_at, 'YYYY-MM') as month, SUM(p.budget) as budget FROM projects p WHERE p.company_id = $1 GROUP BY month ORDER BY month", [companyId]);
+    const monthlyBudget = await db.query(
+      "SELECT TO_CHAR(pu.created_at, 'YYYY-MM') as month, SUM(pu.budget_utilized) as budget FROM projects p JOIN project_updates pu ON p.id = pu.project_id WHERE p.company_id = $1 AND pu.created_at >= NOW() - INTERVAL '5 years' GROUP BY month ORDER BY month",
+      [companyId]
+    );
 
     res.json({
       total_projects: parseInt(projects.rows[0].count),
       total_budget: parseFloat(budget.rows[0].total),
-      budget_utilized: parseFloat(budget.rows[0].used),
-      active_projects: parseInt(active.rows[0].count),
+      budget_utilized: parseFloat(utilized.rows[0].used || 0),
+      active_projects: parseInt(inProgress.rows[0].count),
+      pending_projects: parseInt(pending.rows[0].count),
       completed_projects: parseInt(completed.rows[0].count),
-      total_beneficiaries: parseInt(beneficiaries.rows[0].total),
+      cancelled_projects: parseInt(cancelled.rows[0].count),
+      total_beneficiaries: parseInt(beneficiaries.rows[0].total || 0),
+      pending_update_reviews: parseInt(pendingUpdateReviews.rows[0].count),
+      pending_document_reviews: parseInt(pendingDocumentReviews.rows[0].count),
+      avg_impact_score: parseFloat(impactScores.rows[0].avg_score),
       category_stats: categoryStats.rows,
       monthly_budget: monthlyBudget.rows,
     });
@@ -100,7 +127,10 @@ exports.getNgoStats = async (req, res, next) => {
     const ngoId = ngo.rows[0].id;
 
     const assigned = await db.query('SELECT COUNT(*) as count FROM projects WHERE ngo_id = $1', [ngoId]);
-    const pending = await db.query("SELECT COUNT(*) as count FROM projects WHERE ngo_id = $1 AND status = 'active'", [ngoId]);
+    const pending = await db.query(
+      "SELECT COUNT(*) as count FROM projects p WHERE p.ngo_id = $1 AND p.status NOT IN ('completed', 'cancelled') AND NOT EXISTS (SELECT 1 FROM project_updates pu WHERE pu.project_id = p.id)",
+      [ngoId]
+    );
     const reports = await db.query('SELECT COUNT(*) as count FROM documents d JOIN projects p ON d.project_id = p.id WHERE p.ngo_id = $1', [ngoId]);
     const beneficiaries = await db.query('SELECT COALESCE(SUM(pu.beneficiaries_reached), 0) as total FROM projects p LEFT JOIN project_updates pu ON p.id = pu.project_id WHERE p.ngo_id = $1', [ngoId]);
     const totalBudget = await db.query('SELECT COALESCE(SUM(budget), 0) as total FROM projects WHERE ngo_id = $1', [ngoId]);
@@ -119,7 +149,7 @@ exports.getNgoStats = async (req, res, next) => {
 
 exports.getPublicStats = async (req, res, next) => {
   try {
-    const projects = await db.query("SELECT COUNT(*) as count FROM projects WHERE status = 'completed'");
+    const projects = await db.query("SELECT COUNT(*) as count FROM projects WHERE verified = true");
     const ngos = await db.query('SELECT COUNT(*) as count FROM ngos WHERE verified = 1');
     const budget = await db.query('SELECT COALESCE(SUM(budget), 0) as total FROM projects');
     const beneficiaries = await db.query('SELECT COALESCE(SUM(beneficiaries_reached), 0) as total FROM project_updates');
@@ -159,20 +189,104 @@ exports.getMapData = async (req, res, next) => {
   }
 };
 
-exports.getEsgMetrics = async (req, res, next) => {
+exports.getCompanyEsgMetrics = async (req, res, next) => {
   try {
-    const trees = await db.query("SELECT COALESCE(SUM(beneficiaries_reached), 0) as trees FROM project_updates pu JOIN projects p ON pu.project_id = p.id WHERE p.category = 'Plantation'");
-    const water = await db.query("SELECT COALESCE(SUM(beneficiaries_reached), 0) as water FROM project_updates pu JOIN projects p ON pu.project_id = p.id WHERE p.category = 'Healthcare'");
+    const company = await db.query('SELECT id FROM companies WHERE user_id = $1', [req.user.id]);
+    if (company.rows.length === 0) return res.status(404).json({ error: 'Company not found' });
+    const companyId = company.rows[0].id;
 
-    const students = await db.query("SELECT COALESCE(SUM(beneficiaries_reached), 0) as students FROM project_updates pu JOIN projects p ON pu.project_id = p.id WHERE p.category = 'Education'");
-    const women = await db.query("SELECT COALESCE(SUM(beneficiaries_reached), 0) as women FROM project_updates pu JOIN projects p ON pu.project_id = p.id WHERE p.category = 'Women Empowerment'");
-    const beneficiaries = await db.query('SELECT COALESCE(SUM(beneficiaries_reached), 0) as total FROM project_updates');
-
-    const verifiedNgos = await db.query('SELECT COUNT(*) as count FROM ngos WHERE verified = 1');
-    const reports = await db.query('SELECT COUNT(*) as count FROM documents');
+    const env = await db.query(`
+      SELECT
+        COALESCE(COUNT(DISTINCT p.id), 0) as projects,
+        COALESCE(SUM(pu.beneficiaries_reached), 0) as beneficiaries,
+        COALESCE(SUM(p.budget), 0) as budget
+      FROM projects p
+      LEFT JOIN project_updates pu ON p.id = pu.project_id
+      WHERE p.company_id = $1 AND p.esg_pillar = 'environmental'
+    `, [companyId]);
+    const social = await db.query(`
+      SELECT
+        COALESCE(COUNT(DISTINCT p.id), 0) as projects,
+        COALESCE(SUM(pu.beneficiaries_reached), 0) as beneficiaries,
+        COALESCE(SUM(p.budget), 0) as budget
+      FROM projects p
+      LEFT JOIN project_updates pu ON p.id = pu.project_id
+      WHERE p.company_id = $1 AND p.esg_pillar = 'social'
+    `, [companyId]);
+    const gov = await db.query(`
+      SELECT
+        COALESCE(COUNT(DISTINCT p.id), 0) as projects,
+        COALESCE(SUM(pu.beneficiaries_reached), 0) as beneficiaries,
+        COALESCE(SUM(p.budget), 0) as budget
+      FROM projects p
+      LEFT JOIN project_updates pu ON p.id = pu.project_id
+      WHERE p.company_id = $1 AND p.esg_pillar = 'governance'
+    `, [companyId]);
 
     const topImpact = await db.query(`
-      SELECT p.title, n.ngo_name, i.score, p.category
+      SELECT p.title, n.ngo_name, i.score, p.category, p.esg_pillar
+      FROM impact_scores i
+      JOIN projects p ON i.project_id = p.id
+      LEFT JOIN ngos n ON p.ngo_id = n.id
+      WHERE p.company_id = $1
+      ORDER BY i.score DESC LIMIT 5
+    `, [companyId]);
+
+    res.json({
+      environmental: {
+        projects: parseInt(env.rows[0].projects),
+        beneficiaries: parseInt(env.rows[0].beneficiaries),
+        budget: parseFloat(env.rows[0].budget),
+      },
+      social: {
+        projects: parseInt(social.rows[0].projects),
+        beneficiaries: parseInt(social.rows[0].beneficiaries),
+        budget: parseFloat(social.rows[0].budget),
+      },
+      governance: {
+        projects: parseInt(gov.rows[0].projects),
+        beneficiaries: parseInt(gov.rows[0].beneficiaries),
+        budget: parseFloat(gov.rows[0].budget),
+      },
+      top_impact_projects: topImpact.rows,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getEsgMetrics = async (req, res, next) => {
+  try {
+    const env = await db.query(`
+      SELECT
+        COALESCE(COUNT(DISTINCT p.id), 0) as projects,
+        COALESCE(SUM(pu.beneficiaries_reached), 0) as beneficiaries,
+        COALESCE(SUM(p.budget), 0) as budget
+      FROM projects p
+      LEFT JOIN project_updates pu ON p.id = pu.project_id
+      WHERE p.esg_pillar = 'environmental'
+    `);
+    const social = await db.query(`
+      SELECT
+        COALESCE(COUNT(DISTINCT p.id), 0) as projects,
+        COALESCE(SUM(pu.beneficiaries_reached), 0) as beneficiaries,
+        COALESCE(SUM(p.budget), 0) as budget
+      FROM projects p
+      LEFT JOIN project_updates pu ON p.id = pu.project_id
+      WHERE p.esg_pillar = 'social'
+    `);
+    const gov = await db.query(`
+      SELECT
+        COALESCE(COUNT(DISTINCT p.id), 0) as projects,
+        COALESCE(SUM(pu.beneficiaries_reached), 0) as beneficiaries,
+        COALESCE(SUM(p.budget), 0) as budget
+      FROM projects p
+      LEFT JOIN project_updates pu ON p.id = pu.project_id
+      WHERE p.esg_pillar = 'governance'
+    `);
+
+    const topImpact = await db.query(`
+      SELECT p.title, n.ngo_name, i.score, p.category, p.esg_pillar
       FROM impact_scores i
       JOIN projects p ON i.project_id = p.id
       LEFT JOIN ngos n ON p.ngo_id = n.id
@@ -181,17 +295,19 @@ exports.getEsgMetrics = async (req, res, next) => {
 
     res.json({
       environmental: {
-        trees_planted: parseInt(trees.rows[0].trees),
-        water_conserved: parseInt(water.rows[0].water),
+        projects: parseInt(env.rows[0].projects),
+        beneficiaries: parseInt(env.rows[0].beneficiaries),
+        budget: parseFloat(env.rows[0].budget),
       },
       social: {
-        students_educated: parseInt(students.rows[0].students),
-        women_empowered: parseInt(women.rows[0].women),
-        beneficiaries_reached: parseInt(beneficiaries.rows[0].total),
+        projects: parseInt(social.rows[0].projects),
+        beneficiaries: parseInt(social.rows[0].beneficiaries),
+        budget: parseFloat(social.rows[0].budget),
       },
       governance: {
-        verified_ngos: parseInt(verifiedNgos.rows[0].count),
-        reports_uploaded: parseInt(reports.rows[0].count),
+        projects: parseInt(gov.rows[0].projects),
+        beneficiaries: parseInt(gov.rows[0].beneficiaries),
+        budget: parseFloat(gov.rows[0].budget),
       },
       top_impact_projects: topImpact.rows,
     });
