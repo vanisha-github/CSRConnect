@@ -124,7 +124,7 @@ router.get('/gallery', async (req, res, next) => {
       SELECT p.id as project_id, p.title, 'document' as type, d.file_name, d.file_path, d.created_at
       FROM documents d
       JOIN projects p ON d.project_id = p.id
-      WHERE p.status IN ('completed', 'in_progress', 'active', 'pending') AND d.is_public = true
+      WHERE p.status IN ('completed', 'in_progress', 'active', 'pending') AND d.is_public = true AND d.reviewed = true
         AND d.file_name ~* '\\.(png|jpg|jpeg|gif|svg|webp)$'
       ORDER BY d.created_at DESC
     `);
@@ -154,7 +154,7 @@ router.get('/projects/:id', async (req, res, next) => {
     project.sdg_tags = sdgs.rows.map(s => s.sdg_code);
 
     const updates = await db.query(
-      "SELECT * FROM project_updates WHERE project_id = $1 AND is_public = true ORDER BY created_at ASC",
+      "SELECT * FROM project_updates WHERE project_id = $1 AND is_public = true AND reviewed = true ORDER BY created_at ASC",
       [project.id]
     );
     project.updates = updates.rows;
@@ -162,7 +162,7 @@ router.get('/projects/:id', async (req, res, next) => {
     const docs = await db.query(
       `SELECT d.*, u.name as uploaded_by_name FROM documents d
        JOIN users u ON d.uploaded_by = u.id
-       WHERE d.project_id = $1 AND d.is_public = true ORDER BY d.created_at DESC`,
+       WHERE d.project_id = $1 AND d.is_public = true AND d.reviewed = true ORDER BY d.created_at DESC`,
       [project.id]
     );
     project.documents = docs.rows;
